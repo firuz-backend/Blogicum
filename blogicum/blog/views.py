@@ -1,8 +1,10 @@
+from django.http import HttpResponseRedirect, Http404
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.views.generic import (
     CreateView, DetailView, ListView, UpdateView, DeleteView)
@@ -59,7 +61,7 @@ class CategoryListView(ListView):
         return context
 
 
-class PostCreateView(CreateView):
+class PostCreateView(LoginRequiredMixin, CreateView):
     template_name = 'blog/create.html'
     model = Post
     form_class = PostForm
@@ -72,21 +74,29 @@ class PostCreateView(CreateView):
         return reverse_lazy('blog:profile', kwargs={'username': self.request.user})
 
 
-class PostUpdateView(UpdateView):
-    pk_url_kwarg = 'post_id'
+class PostActionMixin(LoginRequiredMixin):
     template_name = 'blog/create.html'
+    pk_url_kwarg = 'post_id'
     model = Post
+
+    def dispatch(self, request, *args, **kwargs):
+        object = self.get_object()
+        if object.author != request.user and not request.user.is_superuser:
+            return HttpResponseRedirect(
+                reverse_lazy('blog:post_detail',
+                             kwargs={'post_id': self.kwargs.get('post_id')}))
+        return super().dispatch(request, *args, **kwargs)
+
+
+class PostUpdateView(PostActionMixin, UpdateView):
     form_class = PostForm
 
     def get_success_url(self):
         return reverse_lazy('blog:post_detail', kwargs={'post_id': self.kwargs.get('post_id')})
 
 
-class PostDeleteView(DeleteView):
-    model = Post
-    template_name = 'blog/create.html'
+class PostDeleteView(PostActionMixin, DeleteView):
     success_url = reverse_lazy('blog:index')
-    pk_url_kwarg = 'post_id'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -103,8 +113,15 @@ class PostListView(ListView):
 
 class PostDetailView(DetailView):
     template_name = 'blog/detail.html'
-    queryset = get_post_list(Post.objects.all())
+    # queryset = get_post_list(Post.objects.all())
+    model = Post
     pk_url_kwarg = 'post_id'
+
+    def dispatch(self, request, *args, **kwargs):
+        post = self.get_object()
+        if not post.is_published and post.author != request.user:
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form(self):
         return PostCommentForm()
@@ -112,7 +129,7 @@ class PostDetailView(DetailView):
     def get_comments(self):
         return self.object.comments.select_related(
             'author'
-        ).order_by('-created_at')
+        ).order_by('created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -123,7 +140,7 @@ class PostDetailView(DetailView):
         return context
 
 
-class CommentCreateView(CreateView):
+class CommentCreateView(LoginRequiredMixin, CreateView):
     http_method_names = ['post']
     model = PostComment
     form_class = PostCommentForm
@@ -141,7 +158,7 @@ class CommentCreateView(CreateView):
         return super().form_valid(form)
 
 
-class CommentUpdateView(UpdateView):
+class CommentUpdateView(LoginRequiredMixin, UpdateView):
     model = PostComment
     form_class = PostCommentForm
     template_name = 'blog/comment.html'
@@ -160,7 +177,7 @@ class CommentUpdateView(UpdateView):
         )
 
 
-class CommentDeleteView(DeleteView):
+class CommentDeleteView(LoginRequiredMixin, DeleteView):
     model = PostComment
     form_class = PostCommentForm
     template_name = 'blog/comment.html'
@@ -189,6 +206,10 @@ class ProfileDetailView(DetailView):
     def get_post(self):
         # user = User.objects.only('id').filter(username=self.kwargs.get('username'))
         queryset = self.object.posts.all().order_by('-pub_date')
+        if self.request.user == self.object:
+            return queryset.select_related(
+                'location', 'category', 'author'
+            ).annotate(comment_count=Count('comments'))
         return get_post_list(queryset)
 
     def get_context_data(self, **kwargs):
@@ -197,7 +218,7 @@ class ProfileDetailView(DetailView):
         return context
 
 
-class ProfileUpdateView(UpdateView):
+class ProfileUpdateView(LoginRequiredMixin, UpdateView):
     model = User
     fields = ['first_name', 'last_name', 'username', 'email']
     template_name = 'blog/user.html'
