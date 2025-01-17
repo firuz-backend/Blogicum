@@ -25,12 +25,16 @@ SECRET_KEY = 'django-insecure-co4643*=&yf=@%)jnv#_vuyv3yj@!rg!1_##(=@vbbdzn*m%53
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'django_bootstrap5',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -120,7 +124,7 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_L10N = True
+USE_L10N = False
 
 USE_TZ = True
 
@@ -138,3 +142,15 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Подключение бэкенда filebased.EmailBackend с местом куда будут сохранится
+EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
+
+LOGIN_REDIRECT_URL = 'blog:index'
+
+# Переопредление Обработки для страницы ошибки csrf_failure
+CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
+
+# Сюда будут загружатся все фотографии из формы
+MEDIA_ROOT = BASE_DIR / 'media' 

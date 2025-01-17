@@ -36,7 +36,7 @@ class Category(BaseModel):
         verbose_name_plural = 'Категории'
 
     def __str__(self):
-        return self.title[MAX_LEN_256]
+        return self.title[:MAX_LEN_256]
 
 
 class Location(BaseModel):
@@ -54,6 +54,7 @@ class Location(BaseModel):
 
 
 class Post(BaseModel):
+    image = models.ImageField('Фото', upload_to='post_images', blank=True, null=True)
     title = models.CharField(max_length=MAX_LEN_256, verbose_name='Заголовок')
     text = models.TextField(verbose_name='Текст')
     pub_date = models.DateTimeField(
@@ -86,3 +87,17 @@ class Post(BaseModel):
 
     def __str__(self):
         return self.title[:MAX_LEN_256]
+
+
+class PostComment(models.Model):
+    text = models.TextField('Текст поздравления')
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    # class Meta:
+    #     ordering = ('created_at',)
