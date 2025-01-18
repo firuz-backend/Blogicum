@@ -1,6 +1,6 @@
 from django.http import HttpResponseRedirect, Http404
 from django.db.models import Count
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
@@ -33,28 +33,6 @@ def get_paginator(request, post_list):
     page_obj = paginator.get_page(page_number)
 
     return page_obj
-
-
-class CategoryListView(ListView):
-    template_name = 'blog/category.html'
-    paginate_by = LIMIT_OF_POST
-
-    def dispatch(self, request, *args, **kwargs):
-        self.category = get_object_or_404(
-            Category, slug=self.kwargs.get('category_slug'))
-        if not self.category.is_published:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_queryset(self):
-        queryset = self.category.posts.filter(
-            is_published=True, pub_date__lte=timezone.now()).order_by('-pub_date')
-        return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['category'] = self.category
-        return context
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
@@ -250,3 +228,25 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy(
             'blog:profile', kwargs={'username': self.request.user}
         )
+
+
+class CategoryListView(ListView):
+    template_name = 'blog/category.html'
+    paginate_by = LIMIT_OF_POST
+
+    def dispatch(self, request, *args, **kwargs):
+        self.category = get_object_or_404(
+            Category, slug=self.kwargs.get('category_slug'))
+        if not self.category.is_published:
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = self.category.posts.filter(
+            is_published=True, pub_date__lte=timezone.now()).order_by('-pub_date')
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['category'] = self.category
+        return context
