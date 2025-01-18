@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 
 
-MAX_LEN_256 = 256
+MAX_LEN = 256
 
 
 User = get_user_model()
@@ -21,7 +21,7 @@ class BaseModel(models.Model):
 
 
 class Category(BaseModel):
-    title = models.CharField(max_length=MAX_LEN_256, verbose_name='Заголовок')
+    title = models.CharField(max_length=MAX_LEN, verbose_name='Заголовок')
     description = models.TextField(verbose_name='Описание')
     slug = models.SlugField(
         unique=True, verbose_name='Идентификатор',
@@ -36,12 +36,12 @@ class Category(BaseModel):
         verbose_name_plural = 'Категории'
 
     def __str__(self):
-        return self.title[:MAX_LEN_256]
+        return self.title[:MAX_LEN]
 
 
 class Location(BaseModel):
     name = models.CharField(
-        max_length=MAX_LEN_256,
+        max_length=MAX_LEN,
         verbose_name='Название места'
     )
 
@@ -56,7 +56,7 @@ class Location(BaseModel):
 class Post(BaseModel):
     image = models.ImageField(
         'Фото', upload_to='post_images', blank=True, null=True)
-    title = models.CharField(max_length=MAX_LEN_256, verbose_name='Заголовок')
+    title = models.CharField(max_length=MAX_LEN, verbose_name='Заголовок')
     text = models.TextField(verbose_name='Текст')
     pub_date = models.DateTimeField(
         verbose_name='Дата и время публикации',
@@ -87,7 +87,7 @@ class Post(BaseModel):
         verbose_name_plural = 'Публикации'
 
     def __str__(self):
-        return self.title[:MAX_LEN_256]
+        return self.title[:MAX_LEN]
 
 
 class PostComment(models.Model):
@@ -100,5 +100,9 @@ class PostComment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    # class Meta:
-    #     ordering = ('created_at',)
+    class Meta:
+        verbose_name = 'комментария'
+        verbose_name_plural = 'комментарий'
+
+    def __str__(self):
+        return self.text[:MAX_LEN]
