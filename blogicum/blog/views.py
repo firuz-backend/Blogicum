@@ -35,44 +35,21 @@ def get_paginator(request, post_list):
     return page_obj
 
 
-# class CategoryListView(ListView):
-#     template_name = 'blog/category.html'
-#     paginate_by = LIMIT_OF_POST
-
-#     ordering = '-pub_date'
-
-#     def get_queryset(self):
-#         self.category = Category.objects.only(
-#             'description', 'title'
-#         ).filter(
-#             slug=self.kwargs.get('category_slug'), is_published=True).get()
-
-#         posts = self.category.posts.all().select_related(
-#             'location', 'category', 'author'
-#         ).annotate(comment_count=Count('comments'))
-
-#         queryset = posts.filter(
-#             is_published=False,
-#             author=self.request.user) | posts.filter(is_published=True)
-
-#         return queryset.order_by('-pub_date')
-
-
 class CategoryListView(ListView):
     template_name = 'blog/category.html'
     paginate_by = LIMIT_OF_POST
 
-    ordering = '-pub_date'
+    def dispatch(self, request, *args, **kwargs):
+        self.category = get_object_or_404(
+            Category, slug=self.kwargs.get('category_slug'))
+        if not self.category.is_published:
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        self.category = Category.objects.only(
-            'title', 'description'
-        ).filter(
-            slug=self.kwargs.get('category_slug'), is_published=True).get()
-
-        self.queryset = get_post_list().filter(
-            category=self.category.id).filter(**FILTERS, pub_date__lte=timezone.now())
-        return super().get_queryset()
+        queryset = self.category.posts.filter(
+            is_published=True, pub_date__lte=timezone.now()).order_by('-pub_date')
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -139,6 +116,10 @@ class PostDetailView(DetailView):
     def dispatch(self, request, *args, **kwargs):
         post = self.get_object()
         if not post.is_published and post.author != request.user:
+            raise Http404
+        if not post.category.is_published and post.author != request.user:
+            raise Http404
+        if post.pub_date > timezone.now() and post.author != request.user:
             raise Http404
         return super().dispatch(request, *args, **kwargs)
 
