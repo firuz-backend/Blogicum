@@ -154,4 +154,4 @@ LOGIN_REDIRECT_URL = 'blog:index'
 CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
 
 # Сюда будут загружатся все фотографии из формы
-MEDIA_ROOT = BASE_DIR / 'media' 
+MEDIA_ROOT = BASE_DIR / 'media'

@@ -54,7 +54,8 @@ class Location(BaseModel):
 
 
 class Post(BaseModel):
-    image = models.ImageField('Фото', upload_to='post_images', blank=True, null=True)
+    image = models.ImageField(
+        'Фото', upload_to='post_images', blank=True, null=True)
     title = models.CharField(max_length=MAX_LEN_256, verbose_name='Заголовок')
     text = models.TextField(verbose_name='Текст')
     pub_date = models.DateTimeField(

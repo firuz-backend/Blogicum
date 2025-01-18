@@ -45,7 +45,8 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy('blog:profile', kwargs={'username': self.request.user})
+        return reverse_lazy('blog:profile',
+                            kwargs={'username': self.request.user})
 
 
 class PostActionMixin(LoginRequiredMixin):
@@ -66,7 +67,8 @@ class PostUpdateView(PostActionMixin, UpdateView):
     form_class = PostForm
 
     def get_success_url(self):
-        return reverse_lazy('blog:post_detail', kwargs={'post_id': self.kwargs.get('post_id')})
+        return reverse_lazy('blog:post_detail',
+                            kwargs={'post_id': self.kwargs.get('post_id')})
 
 
 class PostDeleteView(PostActionMixin, DeleteView):
@@ -243,7 +245,8 @@ class CategoryListView(ListView):
 
     def get_queryset(self):
         queryset = self.category.posts.filter(
-            is_published=True, pub_date__lte=timezone.now()).order_by('-pub_date')
+            is_published=True,
+            pub_date__lte=timezone.now()).order_by('-pub_date')
         return queryset
 
     def get_context_data(self, **kwargs):
