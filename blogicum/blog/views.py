@@ -14,20 +14,16 @@ from .forms import PostForm, PostCommentForm
 
 LIMIT_OF_POST = 10
 User = get_user_model()
+FILTERS = {
+    'is_published': True,
+    'category__is_published': True
+}
 
 
-def get_post_list(queryset):
-    current_time = timezone.now()
-    filters = {
-        'pub_date__lte': current_time,
-        'is_published': True,
-        'category__is_published': True
-    }
+def get_post_list():
 
-    return queryset.select_related(
+    return Post.objects.select_related(
         'location', 'category', 'author'
-    ).filter(
-        **filters
     ).annotate(comment_count=Count('comments'))
 
 
@@ -37,6 +33,29 @@ def get_paginator(request, post_list):
     page_obj = paginator.get_page(page_number)
 
     return page_obj
+
+
+# class CategoryListView(ListView):
+#     template_name = 'blog/category.html'
+#     paginate_by = LIMIT_OF_POST
+
+#     ordering = '-pub_date'
+
+#     def get_queryset(self):
+#         self.category = Category.objects.only(
+#             'description', 'title'
+#         ).filter(
+#             slug=self.kwargs.get('category_slug'), is_published=True).get()
+
+#         posts = self.category.posts.all().select_related(
+#             'location', 'category', 'author'
+#         ).annotate(comment_count=Count('comments'))
+
+#         queryset = posts.filter(
+#             is_published=False,
+#             author=self.request.user) | posts.filter(is_published=True)
+
+#         return queryset.order_by('-pub_date')
 
 
 class CategoryListView(ListView):
@@ -51,8 +70,8 @@ class CategoryListView(ListView):
         ).filter(
             slug=self.kwargs.get('category_slug'), is_published=True).get()
 
-        self.queryset = get_post_list(Post.objects.filter(
-            category=self.category.id))
+        self.queryset = get_post_list().filter(
+            category=self.category.id).filter(**FILTERS, pub_date__lte=timezone.now())
         return super().get_queryset()
 
     def get_context_data(self, **kwargs):
@@ -105,7 +124,7 @@ class PostDeleteView(PostActionMixin, DeleteView):
 
 
 class PostListView(ListView):
-    queryset = get_post_list(Post.objects.all())
+    queryset = get_post_list().filter(**FILTERS, pub_date__lte=timezone.now())
     template_name = 'blog/index.html'
     paginate_by = LIMIT_OF_POST
     ordering = '-pub_date'
@@ -113,7 +132,7 @@ class PostListView(ListView):
 
 class PostDetailView(DetailView):
     template_name = 'blog/detail.html'
-    # queryset = get_post_list(Post.objects.all())
+    queryset = get_post_list()
     model = Post
     pk_url_kwarg = 'post_id'
 
@@ -164,6 +183,14 @@ class CommentUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'blog/comment.html'
     context_object_name = 'comment'
 
+    def dispatch(self, request, *args, **kwargs):
+        object = self.get_object()
+        if object.author != request.user and not request.user.is_superuser:
+            return HttpResponseRedirect(
+                reverse_lazy('blog:post_detail',
+                             kwargs={'post_id': self.kwargs.get('post_id')}))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self, queryset=None):
         post_comments = get_object_or_404(
             Post, pk=self.kwargs.get('post_id')).comments.all()
@@ -182,6 +209,14 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
     form_class = PostCommentForm
     template_name = 'blog/comment.html'
     context_object_name = 'comment'
+
+    def dispatch(self, request, *args, **kwargs):
+        object = self.get_object()
+        if object.author != request.user and not request.user.is_superuser:
+            return HttpResponseRedirect(
+                reverse_lazy('blog:post_detail',
+                             kwargs={'post_id': self.kwargs.get('post_id')}))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse_lazy(
@@ -203,14 +238,17 @@ class ProfileDetailView(DetailView):
     slug_field = 'username'
     model = User
 
+    def profile_post_list(self, queryset):
+        return queryset.select_related(
+            'location', 'category', 'author'
+        ).annotate(comment_count=Count('comments'))
+
     def get_post(self):
-        # user = User.objects.only('id').filter(username=self.kwargs.get('username'))
         queryset = self.object.posts.all().order_by('-pub_date')
         if self.request.user == self.object:
-            return queryset.select_related(
-                'location', 'category', 'author'
-            ).annotate(comment_count=Count('comments'))
-        return get_post_list(queryset)
+            return self.profile_post_list(queryset)
+
+        return self.profile_post_list(queryset).filter(**FILTERS)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
