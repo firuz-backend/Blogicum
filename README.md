@@ -47,7 +47,7 @@
 ---
 
 ## 🚀 Установка и запуск
-
+```bash
 Клонируйте репозиторий:
     git clone git@github.com:ваш-аккаунт/blogicum.git
     cd blogicum
